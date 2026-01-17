@@ -1,5 +1,6 @@
 local json = morgana.require 'json'
 local core = morgana.require 'core'
+local symbols = morgana.require 'symbols'
 
 local current_function_id = 0;
 local stack = 0;
@@ -20,6 +21,11 @@ function parse(ctx, entries)
 
         -- function definition
         if kind == core.kind._function and not entries then
+            if data.body[1].kind ~= core.kind.desconstructor then error("Function body must start with a desconstructor") end
+
+            local desconstructor = data.body[1]
+            symbols:newScope();
+
             append "\n.text\n"
             append(".global " .. data.name .. "\n")
 
@@ -32,18 +38,39 @@ function parse(ctx, entries)
             -- function prologue
             append "\tpush %rbp\n"
             append "\tmov %rsp, %rbp\n"
-            append "\tsub $16, %rsp\n"
-            stack = stack + 16
+            local params = data.params
+            for _, param in ipairs(params) do stack = stack + param.bytes end
+
+            if stack <= 16 then stack = 16
+            elseif stack > 16 then stack = math.ceil(stack / 16) * 16 end
+            append("\tsub $" .. stack .. ", %rsp\n")
 
             local registers
-            if os == core.os.linux or os == core.os.macos then registers = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" }
-            elseif os == core.os.windows then registers = { "%rcx", "%rdx", "%r8", "%r9" } end
+            if os == core.os.linux or os == core.os.macos then
+                registers = {
+                    {"%rdi", "%edi", "%di",  "%dil"},
+                    {"%rsi", "%esi", "%si",  "%sil"},
+                    {"%rdx", "%edx", "%dx",  "%dl"},
+                    {"%rcx", "%ecx", "%cx",  "%cl"},
+                    {"%r8",  "%r8d", "%r8w", "%r8b"},
+                    {"%r9",  "%r9d", "%r9w", "%r9b"}
+                }
+            elseif os == core.os.windows then
+                registers = {
+                    {"%rcx", "%ecx", "%cx",  "%cl"},
+                    {"%rdx", "%edx", "%dx",  "%dl"},
+                    {"%r8",  "%r8d", "%r8w", "%r8b"},
+                    {"%r9",  "%r9d", "%r9w", "%r9b"},
+                }
+            end
 
-            local params = data.params
             for j, param in ipairs(params) do
-                pos = pos - param.bytes
+                pos = pos + param.bytes
+
                 if j >= #registers then break end
-                append("\tmov " .. registers[j] .. ", " .. pos .. "(%rbp)\n")
+                append("\tmov " .. registers[j][param.matrix + 1] .. ", " .. -pos .. "(%rbp)\n")
+
+                symbols:add(desconstructor.id[j].string, { type = param, offset = -pos, kind = "Variable" })
             end
 
             -- function body
@@ -83,6 +110,7 @@ function codegen(str)
         append "\tsyscall\n"
     end
 
+    symbols:newScope();
 
     local mainctx = json.decode(str)
     append(parse(mainctx.data, false))
