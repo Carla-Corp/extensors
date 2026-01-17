@@ -1,7 +1,7 @@
 <img align="right" src="./assets/icon_nobg.png" alt="Morgana Logo" width="120px" height="120px">
 <br><br>
 
-🔗 [Morgana IR language](https://github.com/carla-extensors/morgana) Extensors
+# 🔗 [Morgana IR language](https://github.com/carla-extensors/morgana) Extensors
 
 How can i create my own extensors?
 
@@ -13,6 +13,7 @@ You can create your own extensors by following these steps:
 - How to code an extensor file?
 You will need to write the file using lua, all extensors have a `morgana` table that contains the following fields:
   - `require`: Import directives from the Morgana kernel.
+
 Before import something, you need to know why native modules Morgana has. They are:
   - `json`: Decode the JSON input
   - `core`: Provides basic functionalities for the extensor
