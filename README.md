@@ -10,7 +10,8 @@ You can create your own extensors by following these steps:
 1. Create a github directory for your extensors.
 2. Code your extensor file to generate the assembly code.
 
-- How to code an extensor file?
+### How to code an extensor file?
+- 
 You will need to write the file using lua, all extensors have a `morgana` table that contains the following fields:
   - `require`: Import directives from the Morgana kernel.
 
@@ -19,7 +20,7 @@ Before import something, you need to know why native modules Morgana has. They a
   - `core`: Provides basic functionalities for the extensor
   - `symbols`: Provides a symbol table for the extensor
 
-- How can i REALLY write the file?
+### How can i REALLY write the file?
 ```lua
 local json = morgana.require 'json'
 local core = morgana.require 'core'
