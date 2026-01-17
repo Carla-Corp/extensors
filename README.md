@@ -11,7 +11,6 @@ You can create your own extensors by following these steps:
 2. Code your extensor file to generate the assembly code.
 
 ### How to code an extensor file?
-- 
 You will need to write the file using lua, all extensors have a `morgana` table that contains the following fields:
   - `require`: Import directives from the Morgana kernel.
 
