@@ -13,6 +13,8 @@ You can create your own extensors by following these steps:
 ### How to code an extensor file?
 You will need to write the file using lua, all extensors have a `morgana` table that contains the following fields:
   - `require`: Import directives from the Morgana kernel.
+  - `next`: Collect the next node in the iterator. ((More about the nodes)[./nodes.md])
+  - `reset`: Reset the current index of the iterator.
 
 Before import something, you need to know why native modules Morgana has. They are:
   - `json`: Decode the JSON input
