@@ -18,6 +18,25 @@ function parse(entries)
         local data = morgana.next()
         if not data then break end
 
+        if data.kind == 5 and entries then
+            append('sbi 0x0A, ' .. data.pin .. '\n')
+
+            if data.toggle then append('sbi 0x0B, ' .. data.pin .. '\n')
+            else                append('cbi 0x0B, ' .. data.pin .. '\n') end
+
+            goto continue
+        end
+
+        if data.kind == 1 and not entries then
+            append '.section .text\n'
+            append('.global ' .. data.name .. '\n')
+            append(data.name .. ':\n')
+
+            append(parse(true))
+
+            goto continue
+        end
+
         ::continue::
     end
 
