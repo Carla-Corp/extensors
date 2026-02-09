@@ -41,12 +41,9 @@ end
 name = "default"
 sources = "src/main.crl"
 
-[extensors_repository]
+[extensors]
 # You can add extensors from an external git repository!
-extensors = [
-	"git@github.com:Carla-Corp/extensors.git",
-	"your repository link here",
-]
+repositories = [ "git@github.com:Carla-Corp/extensors.git", "your repository link here" ]
 ```
 
 5. Install the extensor using the `morgana` command line tool.
