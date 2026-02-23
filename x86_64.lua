@@ -9,12 +9,12 @@ local stack = 0;
 local rax_ocupped = false
 local rbx_ocupped = false
 
-local rax_array = { "%ah", "%ax", "%eax", "%rax" }
+local rax_array = { "%al", "%ax", "%eax", "%rax" }
 local rbx_array = { "%bh", "%bx", "%ebx", "%rbx" }
 
 local function size_extension(bytes, size)
     if bytes == 1 and size == 4 then
-        return 'movzx %ah, %eax'
+        return 'movzx %al, %eax'
     elseif bytes == 2 and size == 4 then
         return 'movzx %ax, %eax'
     end
@@ -37,11 +37,11 @@ local linux_start = [[
 _start:
     pushq %rbp
     movq %rsp, %rbp
+    sub $16, %rsp
     call main
-    movl %eax, %edi
-    movl $60, %eax
+    movq %rax, %rdi
+    movq $60, %rax
     syscall
-    leave
 ]]
 
 function typedmov(bytes)
@@ -81,19 +81,27 @@ function parse(entries)
             append('.type ' .. data.name .. ', @function\n')
             append(data.name .. ':\n')
             append('.LFP' .. function_id .. ':\n');
-            append('\t.cfi_startproc\n')
+            append('\tpushq %rbp\n')
+            append('\tmovq %rsp, %rbp\n')
 
             symbols:newScope();
-            append(parse(true))
+            local code = parse(true);
             symbols:endScope();
-
+            append('\tsub $' .. math.ceil(-stack / 16) * 16 .. ', %rsp\n')
+            append(code)
             append('.LFE' .. function_id .. ':\n');
             append('\t.size ' .. data.name .. ', .LFE' .. function_id .. ' - ' .. data.name .. '\n')
-            append('\t.cfi_endproc\n')
             append('\tmovq %rdi, %rax\n');
+            append('\tleave\n');
             append('\tret\n');
             function_id = function_id + 1
+            stack = 0;
             goto continue
+        end
+
+        if data.kind == 13 then
+            append('movq %rax, %rdi\n')
+            -- append('jmp .LFP' .. function_id .. '\n')
         end
 
         if data.kind == 40 then
@@ -130,15 +138,18 @@ function parse(entries)
             local lhs = data.lhs
             local rhs = data.rhs
 
+            append('movq $0, %rax\n')
+
             if is_number(lhs) and is_number(rhs) then
                 local result
                 if instruction == "add" then result = tonumber(lhs) + tonumber(rhs)
-                elseif instruction == "sub" then result = tonumber(lhs) - tonumber(rhs) end
+                elseif instruction == "sub" then result = tonumber(lhs) - tonumber(rhs)
+                elseif instruction == "mul" then result = tonumber(lhs) * tonumber(rhs)
+                elseif instruction == "div" then result = tonumber(lhs) // tonumber(rhs) end
                 stack = stack - 8;
                 append('movq $' .. result .. ', ' .. stack .. '(%rbp)\n')
                 symbols:add(identifier, { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
             end
-
 
             local first
             local second
@@ -172,6 +183,7 @@ function parse(entries)
             end
 
             matrix = math.floor(math.log(bytes * 8, 2) - 2);
+            if instruction == "mul"  then instruction = 'i' .. instruction end
             append(instruction .. sufix(bytes) .. ' ' .. second .. ', ' .. rax_array[matrix] .. '\n');
 
             if bytes == 1 or bytes == 2 then
