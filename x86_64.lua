@@ -4,6 +4,7 @@ local symbols = morgana.require 'symbols'
 
 local sample = false
 local function_id = 0
+local current_function = ""
 local stack = 0;
 
 local rax_ocupped = false
@@ -76,6 +77,9 @@ function parse(entries)
         if not data then break end
 
         if data.kind == 11 then
+            current_function = data.name
+
+            -- Prologue of function
             append '.text\n'
             append('.globl ' .. data.name .. '\n')
             append('.type ' .. data.name .. ', @function\n')
@@ -84,9 +88,12 @@ function parse(entries)
             append('\tpushq %rbp\n')
             append('\tmovq %rsp, %rbp\n')
 
+            -- Body of function
             symbols:newScope();
             local code = parse(true);
             symbols:endScope();
+
+            -- Epilogue of function
             append('\tsub $' .. math.ceil(-stack / 16) * 16 .. ', %rsp\n')
             append(code)
             append('.LFE' .. function_id .. ':\n');
@@ -94,6 +101,7 @@ function parse(entries)
             append('\tmovq %rdi, %rax\n');
             append('\tleave\n');
             append('\tret\n');
+
             function_id = function_id + 1
             stack = 0;
             goto continue
@@ -102,6 +110,29 @@ function parse(entries)
         if data.kind == 13 then
             append('movq %rax, %rdi\n')
             -- append('jmp .LFP' .. function_id .. '\n')
+        end
+
+        if data.kind == 30 and entries then
+            code = code .. '.' .. current_function .. '_' .. data.identifier .. ':\n'
+            goto continue
+        end
+
+        if data.kind == 31 and entries then
+            append('jmp .' .. current_function .. '_' .. data.label .. '\n')
+            goto continue
+        end
+
+        if data.kind == 32 and entries then
+            local label = data.label
+            local identifier = data.identifier
+            local symbol = symbols:lookup(identifier).symbol
+            local stack_position = symbol.stack_position
+            local symbol_data = symbol.data;
+            local bytes = symbol_data.bytes;
+
+            append('cmp' .. sufix(bytes) .. ' $0, ' .. stack_position .. '(%rbp)\n')
+            append('jne .' .. current_function .. '_' .. label .. '\n')
+            goto continue
         end
 
         if data.kind == 40 then
