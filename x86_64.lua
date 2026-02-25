@@ -128,6 +128,7 @@ function typedmov(bytes)
     elseif bytes == 2 then return 'movw'
     elseif bytes == 4 then return 'movl'
     elseif bytes == 8 then return 'movq'
+    else return 'error'
     end
 end
 
@@ -259,8 +260,9 @@ function parse(entries)
         if data.kind == 400 then
             local identifier = data.identifier
             local type = json.decode(data.type)
+            local start = stack;
             stack = stack - type.bytes;
-            symbols:add(identifier, { stack_position = stack, data = type })
+            symbols:add(identifier, { stack_position = stack, data = type, start = start })
             goto continue
         end
 
@@ -357,6 +359,30 @@ function parse(entries)
 
             append('incq %r15\n')
             append('call __morgana_alert\n')
+            goto continue
+        end
+
+        if data.kind == 800 then
+            local identifier = data.identifier
+            local address = data.address
+            local offset = data.offset
+
+            local symbol = symbols:lookup(address);
+            local start = symbol.start
+            local symbol_data = symbol.data;
+
+            local bytes = symbol_data.tuple[offset + 1];
+
+            local steps = 0
+            for i, b in ipairs(symbol_data.tuple) do
+                steps = steps + b
+                if i == offset + 1 then goto stop end
+            end
+            ::stop::
+
+            local position = start - steps;
+            symbols:add(identifier, { stack_position = position, data = { bytes = bytes, matrix = math.floor(math.log(bytes * 8, 2)-2) } })
+
             goto continue
         end
 
