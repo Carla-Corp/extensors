@@ -13,10 +13,12 @@ local rbx_ocupped = false
 local header = "";
 
 local rax_array = { "%al", "%ax", "%eax", "%rax" }
-local rbx_array = { "%bh", "%bx", "%ebx", "%rbx" }
+local rbx_array = { "%bl", "%bx", "%ebx", "%rbx" }
+
+local registers = { "%rax", "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" }
 
 local function size_extension(bytes, size, array)
-    local i = math.floor(math.log(size * 8, 2)-2);
+    local i = math.floor(math.log(size * 8, 2) - 2);
 
     if bytes == 1 and size == 4 then
         return 'movzx ' .. array[1] .. ', ' .. array[i]
@@ -27,12 +29,12 @@ end
 
 local function is_identifier(str)
     return type(str) == "string"
-       and str:match("^[A-Za-z_][A-Za-z0-9_]*$") ~= nil
+        and str:match("^[A-Za-z_][A-Za-z0-9_]*$") ~= nil
 end
 
 local function is_number(str)
     return type(str) == "string"
-       and str:match("^%-?%d+$") ~= nil
+        and str:match("^%-?%d+$") ~= nil
 end
 
 local linux_alert_bool = false
@@ -124,19 +126,28 @@ _start:
 ]]
 
 function typedmov(bytes)
-    if bytes == 1 then return 'movb'
-    elseif bytes == 2 then return 'movw'
-    elseif bytes == 4 then return 'movl'
-    elseif bytes == 8 then return 'movq'
-    else return 'error'
+    if bytes == 1 then
+        return 'movb'
+    elseif bytes == 2 then
+        return 'movw'
+    elseif bytes == 4 then
+        return 'movl'
+    elseif bytes == 8 then
+        return 'movq'
+    else
+        return 'error'
     end
 end
 
 local function sufix(bytes)
-    if bytes == 1 then return 'b'
-    elseif bytes == 2 then return 'w'
-    elseif bytes == 4 then return 'l'
-    elseif bytes == 8 then return 'q'
+    if bytes == 1 then
+        return 'b'
+    elseif bytes == 2 then
+        return 'w'
+    elseif bytes == 4 then
+        return 'l'
+    elseif bytes == 8 then
+        return 'q'
     end
     return 'error'
 end
@@ -236,18 +247,24 @@ function parse(entries)
             local second_bytes = second_symbol.data.bytes;
 
             local instruction
-            if data.kind == 304     then instruction = "jg"
-            elseif data.kind == 305 then instruction = "jl"
-            elseif data.kind == 306 then instruction = "jge"
-            elseif data.kind == 307 then instruction = "jle"
+            if data.kind == 304 then
+                instruction = "jg"
+            elseif data.kind == 305 then
+                instruction = "jl"
+            elseif data.kind == 306 then
+                instruction = "jge"
+            elseif data.kind == 307 then
+                instruction = "jle"
             end
 
-            append(typedmov(first_bytes) .. ' ' .. first_position .. '(%rbp), ' .. rax_array[first_symbol.data.matrix] .. '\n')
+            append(typedmov(first_bytes) ..
+                ' ' .. first_position .. '(%rbp), ' .. rax_array[first_symbol.data.matrix] .. '\n')
             if first_bytes == 1 or first_bytes == 2 then
                 append(size_extension(first_bytes, 4, rax_array) .. '\n')
             end
 
-            append(typedmov(second_bytes) .. ' ' .. first_position .. '(%rbp), ' .. rbx_array[second_symbol.data.matrix] .. '\n')
+            append(typedmov(second_bytes) ..
+                ' ' .. first_position .. '(%rbp), ' .. rbx_array[second_symbol.data.matrix] .. '\n')
             if second_bytes == 1 or second_bytes == 2 then
                 append(size_extension(second_bytes, 4, rbx_array) .. '\n')
             end
@@ -271,8 +288,17 @@ function parse(entries)
             local identifier = data.identifier
             local symbol = symbols:lookup(identifier)
             local stack_position = symbol.stack_position
-            local symbol_data = symbol.data;
+            local symbol_data = symbol.data
             local size = symbol_data.bytes
+            local matrix = symbol_data.matrix
+
+            if is_identifier(value) then
+                symbol = symbols:lookup(value).symbol
+                local source = symbol.stack_position
+                append(typedmov(size) .. ' ' .. source .. '(%rbp), ' .. rax_array[matrix] .. '\n')
+                append(typedmov(size) .. ' ' .. rax_array[matrix] .. ', ' .. stack_position .. '(%rbp)\n')
+                goto continue
+            end
 
             append(typedmov(size) .. ' $' .. value .. ', ' .. stack_position .. '(%rbp)\n')
             goto continue
@@ -296,13 +322,19 @@ function parse(entries)
 
             if is_number(lhs) and is_number(rhs) then
                 local result
-                if instruction == "add" then result = tonumber(lhs) + tonumber(rhs)
-                elseif instruction == "sub" then result = tonumber(lhs) - tonumber(rhs)
-                elseif instruction == "mul" then result = tonumber(lhs) * tonumber(rhs)
-                elseif instruction == "div" then result = tonumber(lhs) // tonumber(rhs) end
+                if instruction == "add" then
+                    result = tonumber(lhs) + tonumber(rhs)
+                elseif instruction == "sub" then
+                    result = tonumber(lhs) - tonumber(rhs)
+                elseif instruction == "mul" then
+                    result = tonumber(lhs) * tonumber(rhs)
+                elseif instruction == "div" then
+                    result = tonumber(lhs) // tonumber(rhs)
+                end
                 stack = stack - 8;
                 append('movq $' .. result .. ', ' .. stack .. '(%rbp)\n')
-                symbols:add(identifier, { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
+                symbols:add(identifier,
+                    { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
             end
 
             local first
@@ -337,7 +369,7 @@ function parse(entries)
             end
 
             matrix = math.floor(math.log(bytes * 8, 2) - 2);
-            if instruction == "mul"  then instruction = 'i' .. instruction end
+            if instruction == "mul" then instruction = 'i' .. instruction end
             append(instruction .. sufix(bytes) .. ' ' .. second .. ', ' .. rax_array[matrix] .. '\n');
 
             if bytes == 1 or bytes == 2 then
@@ -346,7 +378,8 @@ function parse(entries)
 
             stack = stack - 8;
             append('movq %rax, ' .. stack .. '(%rbp)\n')
-            symbols:add(identifier, { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
+            symbols:add(identifier,
+                { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
 
             goto continue
         end
@@ -381,7 +414,8 @@ function parse(entries)
             ::stop::
 
             local position = start - steps;
-            symbols:add(identifier, { stack_position = position, data = { bytes = bytes, matrix = math.floor(math.log(bytes * 8, 2)-2) } })
+            symbols:add(identifier,
+                { stack_position = position, data = { bytes = bytes, matrix = math.floor(math.log(bytes * 8, 2) - 2) } })
 
             goto continue
         end
@@ -404,8 +438,11 @@ function codegen()
     append(parse(false))
 
     if not linux_start_bool and core.getos() == core.os.linux then
-        if linux_alert_bool then append(linux_start_break_line .. '\n')
-        else append(linux_start .. '\n') end
+        if linux_alert_bool then
+            append(linux_start_break_line .. '\n')
+        else
+            append(linux_start .. '\n')
+        end
         linux_start_bool = true
     end
 
