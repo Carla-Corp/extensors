@@ -335,6 +335,7 @@ function parse(entries)
                 append('movq $' .. result .. ', ' .. stack .. '(%rbp)\n')
                 symbols:add(identifier,
                     { symbol = { stack_position = stack, data = { bytes = 8, matrix = 4, ptr = false } } })
+                goto continue
             end
 
             local first
