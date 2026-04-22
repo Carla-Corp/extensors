@@ -1,3 +1,19 @@
+function argument(node)
+    if node.typeof == "integer" then
+        local register
+        if node.index == 0 then register = "%rdi" end
+        if node.index == 1 then register = "%rsi" end
+        writeln("movq $" .. node.value .. ", " .. register)
+    end
+
+    if node.typeof == "whatever" then
+        local register
+        if node.index == 0 and node.bits == 64 then register = "%rdi" end
+        if node.index == 1 and node.bits == 64 then register = "%rsi" end
+        writeln("movq -" .. node.value .. "(%rbp), " .. register)
+    end
+end
+
 function codegen(node)
     if node.kind == 0 then
         local length, addr, fn = node.length, node.addr, node.fn
@@ -91,42 +107,15 @@ function codegen(node)
         return 0
     end
 
-    if node.kind == 300 then
-        local name, fn = node.name, node.fn
-        tabs(0)
-        writeln(".morg." .. name .. "_" .. fn .. ":")
-        tabs(1)
-        return 0
-    end
-
-    if node.kind == 301 then
-        local name, fn = node.name, node.fn
-        writeln("jmp .morg." .. name .. "_" .. fn)
+    if node.kind == 103 then
+        local identifier = node.identifier
+        writeln("call " .. identifier)
         return 0
     end
 
     if node.kind == 201 then
-        local dest, value, stack, literal, lhs, rhs = node.dest, node.value, node.stack, node.is_literal, node.lhs, node.rhs
-
-        if literal == 1 then
-            if rhs == 1 then writeln("movb $" .. value .. ", -" .. dest .. "(%rbp)") end
-            if rhs == 2 then writeln("movw $" .. value .. ", -" .. dest .. "(%rbp)") end
-            if rhs == 4 then writeln("movl $" .. value .. ", -" .. dest .. "(%rbp)") end
-            if rhs == 8 then writeln("movq $" .. value .. ", -" .. dest .. "(%rbp)") end
-        end
-
-        if literal ~= 1 then
-            if lhs == 1 then writeln("movb -" .. stack .. "(%rbp), %al")  end
-            if lhs == 2 then writeln("movw -" .. stack .. "(%rbp), %ax")  end
-            if lhs == 4 then writeln("movl -" .. stack .. "(%rbp), %eax") end
-            if lhs == 8 then writeln("movq -" .. stack .. "(%rbp), %rax") end
-
-            if rhs == 1 then writeln("movb %al, -"  .. dest .. "(%rbp)")  end
-            if rhs == 2 then writeln("movw %ax, -"  .. dest .. "(%rbp)")  end
-            if rhs == 4 then writeln("movl %eax, -" .. dest .. "(%rbp)")  end
-            if rhs == 8 then writeln("movq %rax, -" .. dest .. "(%rbp)")  end
-        end
-
+        local dest, src = node.dest, node.src
+        writeln("movq $" .. src .. ", -" .. dest .. "(%rbp)")
         return 0
     end
 end
