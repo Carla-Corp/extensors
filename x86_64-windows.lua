@@ -21,15 +21,8 @@ function codegen(node)
     -- =========================
     if node.kind == 0 then
         local addr, fn = node.addr, node.fn
-
-        -- rcx = format string
-        writeln("movq $.fn" .. fn .. "." .. addr .. ", %rcx")
-
-        -- shadow space
-        writeln("subq $32, %rsp")
+        writeln("lea .fn" .. fn .. "." .. addr .. "(%rip), %rcx")
         writeln("call printf")
-        writeln("addq $32, %rsp")
-
         return 0
     end
 
@@ -76,9 +69,7 @@ function codegen(node)
             writeln("WinMain:")
             tabs(1)
 
-            writeln("subq $32, %rsp")
             writeln("call main")
-            writeln("addq $32, %rsp")
 
             writeln("ret")
             writeln("")
